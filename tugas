@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulasi Logika Universal - Premium Dark Mode</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            /* Premium Dark Theme Palette */
+            --bg-color: #0b1121;
+            --card-bg: #151e32;
+            --card-header: #1a253e;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --text-accent: #38bdf8;
+            
+            /* Logisim Elements */
+            --wire-0: #14532d; /* Dark green for 0 */
+            --wire-1: #00ff00; /* Neon green for 1 */
+            --gate-fill: #1e293b;
+            --gate-stroke: #cbd5e1;
+            --border-color: #2a3b5c;
+            --panel-bg: #0f172a;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color);
+            background-image: 
+                radial-gradient(circle at 15% 50%, rgba(56, 189, 248, 0.05) 0%, transparent 50%),
+                radial-gradient(circle at 85% 30%, rgba(16, 185, 129, 0.05) 0%, transparent 50%);
+            color: var(--text-main);
+            margin: 0;
+            padding: 30px 15px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 30px;
+            min-height: 100vh;
+        }
+
+        .header-info {
+            text-align: center;
+            background: rgba(56, 189, 248, 0.1);
+            color: var(--text-accent);
+            padding: 12px 20px;
+            border-radius: 50px;
+            border: 1px solid rgba(56, 189, 248, 0.2);
+            font-weight: 500;
+            font-size: 14px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+            backdrop-filter: blur(8px);
+            max-width: 100%;
+            line-height: 1.4;
+        }
+
+        .case-card {
+            background-color: var(--card-bg);
+            width: 100%;
+            max-width: 1150px;
+            border-radius: 20px;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+            overflow: hidden;
+            border: 1px solid var(--border-color);
+        }
+
+        .case-header {
+            background: var(--card-header);
+            padding: 20px 24px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .case-header h2 {
+            margin: 0;
+            font-size: 18px;
+            font-weight: 600;
+            color: #ffffff;
+            letter-spacing: 0.5px;
+            line-height: 1.4;
+        }
+
+        .case-header span {
+            color: var(--text-accent);
+        }
+
+        .case-content {
+            display: flex;
+            flex-direction: column; /* Default column for mobile-first */
+            padding: 24px;
+            gap: 24px;
+        }
+
+        @media (min-width: 992px) {
+            .case-content {
+                flex-direction: row; /* Row for desktop */
+                flex-wrap: wrap;
+            }
+            .header-info { font-size: 15px; }
+            .case-header h2 { font-size: 20px; }
+        }
+
+        .simulator-panel {
+            flex: 1 1 100%;
+            position: relative;
+            background-color: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            background-image: radial-gradient(rgba(203, 213, 225, 0.1) 1px, transparent 1px);
+            background-size: 20px 20px;
+            background-position: center;
+            box-shadow: inset 0 0 30px rgba(0,0,0,0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 15px;
+            overflow: hidden; /* Prevent scaling overflow */
+        }
+
+        @media (min-width: 992px) {
+            .simulator-panel { flex: 1 1 55%; }
+        }
+
+        /* SVG is made responsive via viewBox */
+        svg {
+            display: block;
+            width: 100%;
+            height: auto;
+            max-width: 680px; /* Prevent overscaling on big screens */
+            user-select: none;
+            overflow: visible;
+        }
+
+        /* Wire Styles */
+        .wire { fill: none; stroke-width: 3.5; stroke-linecap: round; stroke-linejoin: round; transition: stroke 0.2s ease, filter 0.2s ease, stroke-width 0.2s ease; }
+        .wire-0 { stroke: var(--wire-0); }
+        .wire-1 { stroke: var(--wire-1); stroke-width: 4.5; filter: drop-shadow(0 0 6px rgba(0, 255, 0, 0.6)); }
+
+        .junction-0 { fill: var(--wire-0); transition: fill 0.2s; }
+        .junction-1 { fill: var(--wire-1); filter: drop-shadow(0 0 6px rgba(0, 255, 0, 0.8)); transition: fill 0.2s; }
+
+        /* Gate Styles */
+        .gate-path { fill: var(--gate-fill); stroke: var(--gate-stroke); stroke-width: 2.5; transition: fill 0.3s ease; }
+        .simulator-panel:hover .gate-path { fill: #26334d; }
+
+        .pin-group { cursor: pointer; transition: transform 0.15s cubic-bezier(0.4, 0, 0.2, 1); }
+        .pin-group:active { transform: scale(0.92); }
+        .pin-group:hover .pin-rect { stroke: var(--text-accent); stroke-width: 2.5; fill: #1e293b; }
+        
+        .pin-rect { fill: var(--gate-fill); stroke: var(--gate-stroke); stroke-width: 2; rx: 6px; ry: 6px; transition: all 0.2s; }
+        .pin-val { font-family: 'Courier New', monospace; font-size: 22px; font-weight: 700; text-anchor: middle; dominant-baseline: central; fill: #fff; }
+        
+        .lbl-title { font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 600; text-anchor: middle; fill: #cbd5e1; }
+        .lbl-sub { font-family: 'Inter', sans-serif; font-size: 11px; font-style: italic; text-anchor: middle; fill: #64748b; }
+        .lbl-gate { font-family: 'Inter', sans-serif; font-size: 12px; font-weight: 500; text-anchor: middle; fill: #94a3b8; }
+
+        /* Output Bulb Base Styles */
+        .bulb-0 { fill: #1e293b; stroke: #475569; stroke-width: 2.5; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+        .bulb-val { font-family: 'Courier New', monospace; font-size: 18px; font-weight: bold; text-anchor: middle; dominant-baseline: central; fill: #94a3b8; transition: fill 0.3s; }
+        .bulb-val-on { fill: #000; }
+
+        .bulb-1-water { fill: #38bdf8; stroke: #0ea5e9; stroke-width: 2.5; filter: drop-shadow(0 0 15px rgba(56, 189, 248, 0.8)); }
+        .bulb-1-alert { fill: #ef4444; stroke: #dc2626; stroke-width: 2.5; filter: drop-shadow(0 0 15px rgba(239, 68, 68, 0.8)); }
+
+        .table-panel {
+            flex: 1 1 100%;
+            display: flex;
+            align-items: flex-start;
+            overflow-x: auto; /* Enable horizontal scrolling on small screens */
+            border-radius: 16px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+            border: 1px solid var(--border-color);
+            background: var(--panel-bg);
+        }
+
+        @media (min-width: 992px) {
+            .table-panel { flex: 1 1 40%; }
+        }
+
+        table {
+            width: 100%;
+            min-width: 480px; /* Force table width so it doesn't crush on very small screens, triggers scroll */
+            border-collapse: collapse;
+        }
+
+        thead { background-color: var(--card-header); }
+
+        th, td {
+            padding: 12px 10px;
+            text-align: center;
+            border-bottom: 1px solid var(--border-color);
+            font-size: 12px;
+        }
+
+        @media (min-width: 768px) {
+            th, td { padding: 16px 12px; font-size: 13.5px; }
+        }
+
+        th { font-weight: 600; color: #cbd5e1; border-right: 1px solid var(--border-color); line-height: 1.4; }
+        th:last-child { border-right: none; }
+        th span { color: #64748b; font-size: 10.5px; font-weight: 400; display: block; margin-top: 4px; }
+
+        td { color: var(--text-muted); border-right: 1px solid var(--border-color); transition: all 0.2s ease; }
+        td:last-child { border-right: none; text-align: left; font-weight: 400; line-height: 1.5; }
+
+        /* Active Row Highlight */
+        .active-row { background-color: rgba(56, 189, 248, 0.08); }
+        .active-row td { color: #fff; font-weight: 500; }
+        .active-row td:first-child { box-shadow: inset 4px 0 0 var(--text-accent); }
+        
+        .badge { display: inline-block; padding: 4px 6px; border-radius: 6px; font-size: 11px; font-weight: 600; letter-spacing: 0.5px; white-space: nowrap; margin-top: 4px;}
+        @media (min-width: 768px) { .badge { display: inline; margin-top: 0; padding: 4px 8px; font-size: 12px; } }
+        
+        .badge-off { background: rgba(220, 38, 38, 0.15); color: #f87171; border: 1px solid rgba(248, 113, 113, 0.2); }
+        .badge-on { background: rgba(34, 197, 94, 0.15); color: #4ade80; border: 1px solid rgba(74, 222, 128, 0.2); }
+        .badge-water { background: rgba(56, 189, 248, 0.15); color: #7dd3fc; border: 1px solid rgba(125, 211, 252, 0.2); }
+        .badge-alert { background: rgba(239, 68, 68, 0.15); color: #fca5a5; border: 1px solid rgba(252, 165, 165, 0.2); }
+    </style>
+</head>
+<body>
+
+    <div class="header-info">
+        👆 <b>INTERAKTIF:</b> Klik pada kotak angka (0/1) di area INPUT untuk mengubah nilai sensor & saklar.
+    </div>
+
+    <!-- KASUS 3 -->
+    <div class="case-card">
+        <div class="case-header">
+            <h2>STUDI KASUS 3: <br><span>GERBANG NAND UNIVERSAL</span> (Penyiraman Otomatis)</h2>
+        </div>
+        <div class="case-content">
+            <div class="simulator-panel">
+                <!-- Ditambahkan viewBox agar responsif tanpa batas absolut pixel -->
+                <svg viewBox="0 0 680 280" preserveAspectRatio="xMidYMid meet" id="svg-case3">
+                    <defs>
+                        <g id="nand-gate">
+                            <path class="gate-path" d="M 0 0 L 20 0 A 20 20 0 0 1 20 40 L 0 40 Z" />
+                            <circle class="gate-path" cx="45" cy="20" r="5" />
+                            <line x1="-15" y1="10" x2="0" y2="10" stroke="var(--gate-stroke)" stroke-width="2.5"/>
+                            <line x1="-15" y1="30" x2="0" y2="30" stroke="var(--gate-stroke)" stroke-width="2.5"/>
+                            <line x1="50" y1="20" x2="65" y2="20" stroke="var(--gate-stroke)" stroke-width="2.5"/>
+                        </g>
+                    </defs>
+
+                    <!-- Wires Case 3 -->
+                    <path id="c3w_A_main" class="wire wire-0" d="M 85 70 L 135 70" />
+                    <path id="c3w_A_s1" class="wire wire-0" d="M 135 70 L 135 60 L 155 60" />
+                    <path id="c3w_A_s2" class="wire wire-0" d="M 135 70 L 135 80 L 155 80" />
+                    <circle id="c3j_A" cx="135" cy="70" r="4.5" class="junction-0" />
+
+                    <path id="c3w_N1_out" class="wire wire-0" d="M 235 70 L 290 70 L 290 125 L 325 125" />
+                    <path id="c3w_B_main" class="wire wire-0" d="M 85 200 L 290 200 L 290 145 L 325 145" />
+
+                    <path id="c3w_N2_out" class="wire wire-0" d="M 405 135 L 440 135" />
+                    <path id="c3w_N2_s1" class="wire wire-0" d="M 440 135 L 440 125 L 465 125" />
+                    <path id="c3w_N2_s2" class="wire wire-0" d="M 440 135 L 440 145 L 465 145" />
+                    <circle id="c3j_N2" cx="440" cy="135" r="4.5" class="junction-0" />
+
+                    <path id="c3w_Y" class="wire wire-0" d="M 545 135 L 595 135" />
+
+                    <!-- UI Components -->
+                    <g class="pin-group" transform="translate(50, 52.5)" onclick="toggleC3A()">
+                        <rect class="pin-rect" x="0" y="0" width="35" height="35" />
+                        <text id="txt_c3A" class="pin-val" x="17.5" y="17.5">0</text>
+                        <text class="lbl-title" x="-35" y="-10">INPUT A</text>
+                        <text class="lbl-sub" x="-35" y="5">(Sensor Tanah)</text>
+                    </g>
+
+                    <g class="pin-group" transform="translate(50, 182.5)" onclick="toggleC3B()">
+                        <rect class="pin-rect" x="0" y="0" width="35" height="35" />
+                        <text id="txt_c3B" class="pin-val" x="17.5" y="17.5">0</text>
+                        <text class="lbl-title" x="-35" y="-10">INPUT B</text>
+                        <text class="lbl-sub" x="-35" y="5">(Sensor Toren)</text>
+                    </g>
+
+                    <!-- Gates -->
+                    <use href="#nand-gate" x="170" y="50" />
+                    <text class="lbl-gate" x="202" y="40">A' (Inverter)</text>
+
+                    <use href="#nand-gate" x="340" y="115" />
+                    <text class="lbl-gate" x="372" y="105">(A' . B)'</text>
+
+                    <use href="#nand-gate" x="480" y="115" />
+                    <text class="lbl-gate" x="512" y="105">A' . B (Inv)</text>
+
+                    <!-- Output Y -->
+                    <g transform="translate(595, 135)">
+                        <circle id="bulb_c3" class="bulb-0" cx="18" cy="0" r="18" />
+                        <text id="txt_c3Y" class="bulb-val" x="18" y="1">0</text>
+                        <text class="lbl-title" x="18" y="35">OUTPUT Y</text>
+                        <text class="lbl-sub" x="18" y="50">(Pompa Air)</text>
+                    </g>
+                </svg>
+            </div>
+
+            <!-- Table Case 3 -->
+            <div class="table-panel">
+                <table id="tbl_c3">
+                    <thead>
+                        <tr>
+                            <th>INPUT A<span>(0=Kering, 1=Basah)</span></th>
+                            <th>INPUT B<span>(0=Kosong, 1=Ada Air)</span></th>
+                            <th>OUTPUT Y<span>(Pompa Sprinkler)</span></th>
+                            <th>Keterangan</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr><td>0</td><td>0</td><td>0</td><td>Tanah kering, Toren kosong. <span class="badge badge-off">MATI</span></td></tr>
+                        <tr><td>0</td><td>1</td><td>1</td><td>Tanah kering, Toren isi. <span class="badge badge-water">MENYIRAM</span></td></tr>
+                        <tr><td>1</td><td>0</td><td>0</td><td>Tanah basah, Toren kosong. <span class="badge badge-off">MATI</span></td></tr>
+                        <tr><td>1</td><td>1</td><td>0</td><td>Tanah basah, Toren isi. <span class="badge badge-off">MATI</span></td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- KASUS 4 -->
+    <div class="case-card">
+        <div class="case-header">
+            <h2>STUDI KASUS 4: <br><span>GERBANG NOR UNIVERSAL</span> (Lampu Darurat Gedung)</h2>
+        </div>
+        <div class="case-content">
+            <div class="simulator-panel">
+                <svg viewBox="0 0 680 280" preserveAspectRatio="xMidYMid meet" id="svg-case4">
+                    <defs>
+                        <g id="nor-gate">
+                            <path class="gate-path" d="M 0 0 Q 15 20 0 40 Q 30 40 40 20 Q 30 0 0 0 Z" />
+                            <circle class="gate-path" cx="45" cy="20" r="5" />
+                            <line x1="-15" y1="10" x2="3" y2="10" stroke="var(--gate-stroke)" stroke-width="2.5"/>
+                            <line x1="-15" y1="30" x2="3" y2="30" stroke="var(--gate-stroke)" stroke-width="2.5"/>
+                            <line x1="50" y1="20" x2="65" y2="20" stroke="var(--gate-stroke)" stroke-width="2.5"/>
+                        </g>
+                    </defs>
+
+                    <!-- Wires Case 4 -->
+                    <path id="c4w_A_main" class="wire wire-0" d="M 85 70 L 135 70" />
+                    <path id="c4w_A_s1" class="wire wire-0" d="M 135 70 L 135 60 L 155 60" />
+                    <path id="c4w_A_s2" class="wire wire-0" d="M 135 70 L 135 80 L 155 80" />
+                    <circle id="c4j_A" cx="135" cy="70" r="4.5" class="junction-0" />
+
+                    <path id="c4w_N1_out" class="wire wire-0" d="M 235 70 L 290 70 L 290 125 L 325 125" />
+                    <path id="c4w_B_main" class="wire wire-0" d="M 85 200 L 290 200 L 290 145 L 325 145" />
+
+                    <path id="c4w_N2_out" class="wire wire-0" d="M 405 135 L 440 135" />
+                    <path id="c4w_N2_s1" class="wire wire-0" d="M 440 135 L 440 125 L 465 125" />
+                    <path id="c4w_N2_s2" class="wire wire-0" d="M 440 135 L 440 145 L 465 145" />
+                    <circle id="c4j_N2" cx="440" cy="135" r="4.5" class="junction-0" />
+
+                    <path id="c4w_Y" class="wire wire-0" d="M 545 135 L 595 135" />
+
+                    <!-- UI Components -->
+                    <g class="pin-group" transform="translate(50, 52.5)" onclick="toggleC4A()">
+                        <rect class="pin-rect" x="0" y="0" width="35" height="35" />
+                        <text id="txt_c4A" class="pin-val" x="17.5" y="17.5">0</text>
+                        <text class="lbl-title" x="-35" y="-10">INPUT A</text>
+                        <text class="lbl-sub" x="-35" y="5">(Listrik PLN)</text>
+                    </g>
+
+                    <g class="pin-group" transform="translate(50, 182.5)" onclick="toggleC4B()">
+                        <rect class="pin-rect" x="0" y="0" width="35" height="35" />
+                        <text id="txt_c4B" class="pin-val" x="17.5" y="17.5">0</text>
+                        <text class="lbl-title" x="-35" y="-10">INPUT B</text>
+                        <text class="lbl-sub" x="-35" y="5">(Saklar Paksa)</text>
+                    </g>
+
+                    <!-- Gates -->
+                    <use href="#nor-gate" x="170" y="50" />
+                    <text class="lbl-gate" x="202" y="40">A' (Inverter)</text>
+
+                    <use href="#nor-gate" x="340" y="115" />
+                    <text class="lbl-gate" x="372" y="105">(A' + B)'</text>
+
+                    <use href="#nor-gate" x="480" y="115" />
+                    <text class="lbl-gate" x="512" y="105">A' + B (Inv)</text>
+
+                    <!-- Output Y -->
+                    <g transform="translate(595, 135)">
+                        <circle id="bulb_c4" class="bulb-0" cx="18" cy="0" r="18" />
+                        <text id="txt_c4Y" class="bulb-val" x="18" y="1">1</text>
+                        <text class="lbl-title" x="18" y="35">OUTPUT Y</text>
+                        <text class="lbl-sub" x="18" y="50">(Lampu Darurat)</text>
+                    </g>
+                </svg>
+            </div>
+
+            <!-- Table Case 4 -->
+            <div class="table-panel">
+                <table id="tbl_c4">
+                    <thead>
+                        <tr>
+                            <th>INPUT A<span>(0=Padam, 1=Normal)</span></th>
+                            <th>INPUT B<span>(0=Auto, 1=Ditekan)</span></th>
+                            <th>OUTPUT Y<span>(Lampu Darurat)</span></th>
+                            <th>Keterangan</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr><td>0</td><td>0</td><td>1</td><td>PLN padam, Auto. <span class="badge badge-alert">NYALA</span></td></tr>
+                        <tr><td>0</td><td>1</td><td>1</td><td>PLN padam, Ditekan. <span class="badge badge-alert">NYALA</span></td></tr>
+                        <tr><td>1</td><td>0</td><td>0</td><td>PLN normal, Auto. <span class="badge badge-off">MATI</span></td></tr>
+                        <tr><td>1</td><td>1</td><td>1</td><td>PLN normal, Ditekan. <span class="badge badge-alert">NYALA</span></td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // State Variables
+        let c3A = 0, c3B = 0;
+        let c4A = 0, c4B = 0;
+
+        // Click Handlers
+        function toggleC3A() { c3A = 1 - c3A; updateCase3(); }
+        function toggleC3B() { c3B = 1 - c3B; updateCase3(); }
+        function toggleC4A() { c4A = 1 - c4A; updateCase4(); }
+        function toggleC4B() { c4B = 1 - c4B; updateCase4(); }
+
+        function setWire(id, val, isJunction = false) {
+            const el = document.getElementById(id);
+            if (!el) return;
+            const cls = val === 1 ? '1' : '0';
+            el.setAttribute('class', isJunction ? `junction-${cls}` : `wire wire-${cls}`);
+        }
+
+        function highlightRow(tableId, index) {
+            const tbody = document.querySelector(`#${tableId} tbody`);
+            const rows = tbody.querySelectorAll('tr');
+            rows.forEach((row, i) => {
+                if (i === index) row.classList.add('active-row');
+                else row.classList.remove('active-row');
+            });
+        }
+
+        // --- CASE 3 LOGIC (NAND - Automatis Penyiraman) ---
+        function updateCase3() {
+            const n1 = (c3A === 1 && c3A === 1) ? 0 : 1; 
+            const n2 = (n1 === 1 && c3B === 1) ? 0 : 1;
+            const y = (n2 === 1 && n2 === 1) ? 0 : 1;
+
+            document.getElementById('txt_c3A').textContent = c3A;
+            document.getElementById('txt_c3B').textContent = c3B;
+            document.getElementById('txt_c3Y').textContent = y;
+
+            const bulb = document.getElementById('bulb_c3');
+            const txtY = document.getElementById('txt_c3Y');
+            bulb.className.baseVal = y === 1 ? 'bulb-1-water' : 'bulb-0';
+            txtY.className.baseVal = y === 1 ? 'bulb-val bulb-val-on' : 'bulb-val';
+
+            setWire('c3w_A_main', c3A); setWire('c3w_A_s1', c3A); setWire('c3w_A_s2', c3A); setWire('c3j_A', c3A, true);
+            setWire('c3w_N1_out', n1); setWire('c3w_B_main', c3B);
+            setWire('c3w_N2_out', n2); setWire('c3w_N2_s1', n2); setWire('c3w_N2_s2', n2); setWire('c3j_N2', n2, true);
+            setWire('c3w_Y', y);
+
+            highlightRow('tbl_c3', (c3A << 1) | c3B);
+        }
+
+        // --- CASE 4 LOGIC (NOR - Lampu Darurat) ---
+        function updateCase4() {
+            const n1 = (c4A === 0 && c4A === 0) ? 1 : 0; 
+            const n2 = (n1 === 0 && c4B === 0) ? 1 : 0;
+            const y = (n2 === 0 && n2 === 0) ? 1 : 0;
+
+            document.getElementById('txt_c4A').textContent = c4A;
+            document.getElementById('txt_c4B').textContent = c4B;
+            document.getElementById('txt_c4Y').textContent = y;
+
+            const bulb = document.getElementById('bulb_c4');
+            const txtY = document.getElementById('txt_c4Y');
+            bulb.className.baseVal = y === 1 ? 'bulb-1-alert' : 'bulb-0';
+            txtY.className.baseVal = y === 1 ? 'bulb-val bulb-val-on' : 'bulb-val';
+
+            setWire('c4w_A_main', c4A); setWire('c4w_A_s1', c4A); setWire('c4w_A_s2', c4A); setWire('c4j_A', c4A, true);
+            setWire('c4w_N1_out', n1); setWire('c4w_B_main', c4B);
+            setWire('c4w_N2_out', n2); setWire('c4w_N2_s1', n2); setWire('c4w_N2_s2', n2); setWire('c4j_N2', n2, true);
+            setWire('c4w_Y', y);
+
+            highlightRow('tbl_c4', (c4A << 1) | c4B);
+        }
+
+        window.onload = function() {
+            updateCase3();
+            updateCase4();
+        };
+    </script>
+</body>
+</html>
